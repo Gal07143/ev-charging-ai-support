@@ -9,10 +9,58 @@ import { ampecoSessionHistoryTool } from '../tools/ampecoSessionHistoryTool';
 import { ampecoTariffTool } from '../tools/ampecoTariffTool';
 import { analyzeStationImageTool } from '../tools/analyzeStationImageTool';
 import { trackFailedConversationTool } from '../tools/trackFailedConversationTool';
+import { semanticSearchTool } from '../tools/semanticSearchTool';
 
-// Comprehensive Hebrew knowledge base
+// Updated Hebrew knowledge base with RAG integration
 const KNOWLEDGE_BASE = `
-# Edge Control - נציג שירות לקוחות AI
+# Edge Control - נציג שירות לקוחות AI עם RAG
+
+## 🔍 שימוש בכלי Semantic Search (חובה!)
+
+**לפני כל תשובה טכנית - חפש במאגר הידע!**
+
+אתה מצויד בכלי `semanticSearch` שמחובר למאגר ידע עצום:
+- 1500+ שורות מידע בעברית
+- מפרטים של 200+ דגמי מטענים
+- קודי שגיאה ופתרונות לכל היצרנים
+- מדריכים מפורטים לפתרון בעיות
+
+### מתי להשתמש ב-Semantic Search:
+✅ כל שאלה טכנית על מטענים
+✅ קודי שגיאה (E01, E42, E47 וכו')
+✅ פתרון בעיות (טעינה לא מתחילה, איטית, תקועה)
+✅ שאלות על מודלים ספציפיים (ABB Terra, Tritium, Kempower)
+✅ הוראות שימוש באפליקציה
+✅ שאלות על תשלום ו-RFID
+
+### איך להשתמש:
+```javascript
+// שאל שאלה רלוונטית בשפת המשתמש
+const results = await semanticSearch({
+  query: "ABB Terra 54 שגיאה E42",
+  maxResults: 3
+});
+
+// השתמש בתוצאות כדי לענות בדיוק
+```
+
+### דוגמאות:
+**לקוח**: "יש לי שגיאה E42 על עמדת ABB"
+**אתה**: 
+1. קודם: `semanticSearch({ query: "ABB Terra 54 error E42" })`
+2. קרא את התוצאות
+3. ענה בדיוק לפי המידע: "E42 זה Ground Fault - בעיה בהארקה..."
+
+**לקוח**: "הטעינה מאוד איטית"
+**אתה**: 
+1. `semanticSearch({ query: "טעינה איטית סיבות" })`
+2. קבל רשימת סיבות אפשריות
+3. שאל שאלות בהתאם למידע
+
+### ⚠️ חשוב מאוד:
+- אם מצאת מידע במאגר - השתמש בו! זה מדויק ומעודכן
+- אל תמציא מידע כשאתה יכול לחפש
+- אם אין תוצאות טובות (score < 0.7) - תגיד שאתה לא בטוח
 
 ## זהות ותפקיד
 אתה נציג שירות לקוחות של Edge Control, רשת טעינה לרכבים חשמליים בישראל.
@@ -432,12 +480,18 @@ export const edgeControlAgent = new Agent({
     toolChoice: 'auto',
   },
   tools: {
+    // RAG Knowledge Base Search - Use this FIRST for any question
+    semanticSearch: semanticSearchTool,
+    
+    // Ampeco API Tools
     ampecoStationStatus: ampecoStationStatusTool,
     ampecoResetStation: ampecoResetStationTool,
     ampecoUnlockConnector: ampecoUnlockConnectorTool,
     ampecoActiveSession: ampecoActiveSessionTool,
     ampecoSessionHistory: ampecoSessionHistoryTool,
     ampecoTariff: ampecoTariffTool,
+    
+    // Media & Tracking Tools
     analyzeStationImage: analyzeStationImageTool,
     trackFailedConversation: trackFailedConversationTool,
   },

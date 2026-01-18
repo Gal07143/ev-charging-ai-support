@@ -3,6 +3,7 @@ import app from './index';
 import { startDiscordBot, stopDiscordBot } from './triggers/discordTriggers';
 import { initializeMastra } from './mastra';
 import { startMessageWorker, stopMessageWorker } from './utils/messageQueue';
+import { getStationMonitoring } from './services/stationMonitoring';
 import { logger } from './utils/logger';
 
 const port = Number(process.env.PORT) || 3000;
@@ -16,6 +17,11 @@ async function startServer() {
 
     // Start message queue worker
     startMessageWorker();
+
+    // Start station monitoring service
+    const stationMonitoring = getStationMonitoring();
+    await stationMonitoring.start();
+    logger.info('✅ Station monitoring service started');
 
     // Start Discord bot
     await startDiscordBot();
@@ -38,6 +44,9 @@ async function shutdown() {
   logger.info('⏳ Shutting down gracefully...');
   
   try {
+    const stationMonitoring = getStationMonitoring();
+    stationMonitoring.stop();
+    
     await stopDiscordBot();
     await stopMessageWorker();
     logger.info('✅ Shutdown complete');

@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, Events, Message, Interaction } from 'discord.js';
 import { checkRateLimit, isGreeting, updateSessionActivity, isSessionExpired } from '../mastra/utils/ampecoUtils';
 import { enqueueMessage } from '../utils/messageQueue';
+import { initializeNotificationService, stopNotificationService } from '../services/proactiveNotifications';
 import { logger } from '../utils/logger';
 import { messagesProcessed, rateLimitViolations } from '../utils/metrics';
 import { detectLanguage } from '../mastra/utils/ampecoUtils';
@@ -25,6 +26,10 @@ export async function startDiscordBot() {
   try {
     discordClient.once(Events.ClientReady, (client) => {
       logger.info({ tag: client.user.tag }, '✅ Discord bot ready!');
+      
+      // Initialize proactive notification service
+      initializeNotificationService(discordClient, process.env.DISCORD_ALERTS_CHANNEL_ID);
+      logger.info('✅ Proactive notifications initialized');
     });
 
     // Handle messages
@@ -180,6 +185,9 @@ export async function startDiscordBot() {
 // Stop Discord bot
 export async function stopDiscordBot() {
   try {
+    // Stop notification service
+    stopNotificationService();
+    
     if (discordClient) {
       await discordClient.destroy();
       logger.info('✅ Discord bot stopped');

@@ -33,6 +33,32 @@ A Discord bot that provides instant, empathetic customer support for electric ve
 - **Typing indicators** - Shows bot is working
 - **Error handling** - Graceful failures with user-friendly messages
 
+## 🚀 Improvement Plans
+
+### ✅ Phase 1: Foundation (COMPLETE)
+- 15 critical fixes implemented ([IMPROVEMENTS_COMPLETE.md](./IMPROVEMENTS_COMPLETE.md))
+- HTTP server, Inngest webhooks, connection pooling, structured logging
+- Message queue, metrics, error boundaries, multi-channel support
+
+### 📋 Phase 2: Production-Grade Intelligence (PLANNED)
+- **15 additional critical improvements** ([CRITICAL_IMPROVEMENTS_PHASE_2.md](./CRITICAL_IMPROVEMENTS_PHASE_2.md))
+- **Quick Reference**: [PHASE_2_SUMMARY.md](./PHASE_2_SUMMARY.md)
+
+**Key improvements**:
+- 🔴 **P0 Critical** (Weeks 1-4): Real-time monitoring, RAG knowledge base, multi-language, diagnostic flows, charger database
+- 🟡 **P1 High** (Weeks 5-8): Smart escalation, quality scoring, predictive analytics, rich media (OCR/voice), analytics dashboard
+- 🟢 **P2 Advanced** (Weeks 9-12): Vehicle compatibility, dynamic API tools, sentiment analysis, offline mode, auto KB updates
+
+**Expected impact**:
+- Resolution rate: 65% → 90%
+- Conversation time: 12 → 6 messages
+- Escalation rate: 35% → 10%
+- User satisfaction: 3.8 → 4.6/5
+- Knowledge coverage: 40% → 95%
+
+### 🎯 25-Stage Master Plan
+Complete roadmap for becoming an industry-leading EV charging support system ([EV_AGENT_IMPROVEMENT_PLAN.md](./EV_AGENT_IMPROVEMENT_PLAN.md))
+
 ## 🏗️ Architecture
 
 ```

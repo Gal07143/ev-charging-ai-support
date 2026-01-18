@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'edge-control-bot',
-      script: 'npx',
-      args: 'vite-node src/index.tsx',
+      script: 'tsx',
+      args: 'src/server.ts',
       env: {
         NODE_ENV: 'development',
         PORT: 3000,

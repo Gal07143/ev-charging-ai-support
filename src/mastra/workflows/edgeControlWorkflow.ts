@@ -1,6 +1,12 @@
 import { inngest } from '../inngest';
 import { edgeControlAgent } from '../agents/edgeControlAgent';
-import { Client, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { discordClient } from '../../triggers/discordTriggers';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { logger, generateRequestId } from '../../utils/logger';
+import { agentResponseTime, messagesProcessed, toolUsage, failedConversations } from '../../utils/metrics';
+import { trimConversationHistory } from '../../utils/contextManager';
+import { getFallbackResponse, serviceHealthTracker } from '../../utils/fallbackHandler';
+import { detectLanguage } from '../utils/ampecoUtils';
 
 // Extract context from conversation history
 function extractContext(messages: any[]) {
@@ -105,20 +111,43 @@ export const edgeControlWorkflow = inngest.createFunction(
       attachments = [],
     } = event.data;
 
-    // Step 1: Generate response using agent
+    const requestId = generateRequestId();
+    const requestLogger = logger.child({ requestId, userId, threadId });
+
+    requestLogger.info('Starting workflow execution');
+
+    // Step 1: Generate response using agent with error boundaries
     const agentResponse = await step.run('generate-response', async () => {
+      const startTime = Date.now();
+      
       try {
+        // Check if Ampeco service is healthy
+        if (!serviceHealthTracker.isHealthy('ampeco')) {
+          requestLogger.warn('Ampeco service unhealthy, using fallback');
+          const lang = detectLanguage(content);
+          messagesProcessed.inc({ status: 'fallback' });
+          
+          return {
+            success: false,
+            text: getFallbackResponse(lang),
+            usedFallback: true,
+          };
+        }
+
         // Get conversation history
         const history = await edgeControlAgent.memory.getMessages({
           threadId,
         });
 
+        // Trim conversation history to manage context window
+        const trimmedHistory = trimConversationHistory(history);
+
         // Extract context
-        const context = extractContext(history);
+        const context = extractContext(trimmedHistory);
 
         // Prepare messages for agent
         const messages = [
-          ...history.map((msg: any) => ({
+          ...trimmedHistory.map((msg: any) => ({
             role: msg.role,
             content: msg.content,
           })),
@@ -142,11 +171,34 @@ export const edgeControlWorkflow = inngest.createFunction(
           }
         }
 
+        requestLogger.debug({ messageCount: messages.length }, 'Generating agent response');
+
         // Generate response
         const response = await edgeControlAgent.generateLegacy({
           messages,
           threadId,
         });
+
+        // Record tool usage
+        if (response.steps) {
+          for (const step of response.steps) {
+            if (step.toolCalls && step.toolCalls.length > 0) {
+              for (const toolCall of step.toolCalls) {
+                toolUsage.inc({ 
+                  tool: toolCall.toolName || 'unknown', 
+                  status: 'success' 
+                });
+              }
+            }
+          }
+        }
+
+        const duration = (Date.now() - startTime) / 1000;
+        agentResponseTime.observe(duration);
+        messagesProcessed.inc({ status: 'success' });
+        serviceHealthTracker.recordSuccess('agent');
+
+        requestLogger.info({ duration }, 'Agent response generated successfully');
 
         return {
           success: true,
@@ -155,20 +207,32 @@ export const edgeControlWorkflow = inngest.createFunction(
           toolCalls: response.steps?.filter((s: any) => s.toolCalls?.length > 0) || [],
         };
       } catch (error) {
-        console.error('Agent generate error:', error);
+        const duration = (Date.now() - startTime) / 1000;
+        agentResponseTime.observe(duration);
+        
+        requestLogger.error({ error, duration }, 'Agent generation failed');
+        messagesProcessed.inc({ status: 'error' });
+        serviceHealthTracker.recordFailure('agent');
+
+        // Track if this requires human intervention
+        if (context?.frustrationLevel === 'high' || context?.attempts > 3) {
+          failedConversations.inc({ reason: 'agent_error' });
+        }
+
+        const lang = detectLanguage(content);
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
-          text: 'מצטער, נתקלתי בבעיה טכנית. אנא נסה שוב או פנה לנציג אנושי.',
+          text: getFallbackResponse(lang),
+          usedFallback: true,
         };
       }
     });
 
-    // Step 2: Send response to Discord
+    // Step 2: Send response to Discord (reuse existing client)
     await step.run('send-discord-response', async () => {
       try {
-        const discordClient = new Client({ intents: [] });
-        await discordClient.login(process.env.DISCORD_BOT_TOKEN);
+        requestLogger.debug('Sending response to Discord');
 
         const channel = await discordClient.channels.fetch(channelId);
         if (!channel?.isTextBased()) {
@@ -196,15 +260,15 @@ export const edgeControlWorkflow = inngest.createFunction(
           
           await channel.send({
             content: chunks[i],
-            components: isLastChunk ? createButtons() : undefined,
+            components: isLastChunk && !agentResponse.usedFallback ? createButtons() : undefined,
           });
         }
 
-        await discordClient.destroy();
+        requestLogger.info({ chunks: chunks.length }, 'Response sent to Discord');
 
         return { success: true };
       } catch (error) {
-        console.error('Discord send error:', error);
+        requestLogger.error({ error }, 'Discord send error');
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -212,10 +276,13 @@ export const edgeControlWorkflow = inngest.createFunction(
       }
     });
 
+    requestLogger.info('Workflow execution completed');
+
     return {
       success: true,
       messageId,
       threadId,
+      requestId,
       agentResponse: agentResponse.text,
     };
   }

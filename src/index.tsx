@@ -1,9 +1,13 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from 'inngest/hono';
-import { initializeMastra, inngest, edgeControlAgent } from './mastra';
+import { edgeControlAgent } from './mastra';
 import { edgeControlWorkflow } from './mastra/workflows/edgeControlWorkflow';
-import { startDiscordBot, stopDiscordBot } from './triggers/discordTriggers';
+import { inngest } from './mastra/inngest';
+import { pgPool } from './mastra/storage';
+import { logger } from './utils/logger';
+import { register } from './utils/metrics';
+import { getQueueStats } from './utils/messageQueue';
 import 'dotenv/config';
 
 const app = new Hono();
@@ -11,39 +15,26 @@ const app = new Hono();
 // Enable CORS
 app.use('/api/*', cors());
 
-// Initialize system on startup
-let systemInitialized = false;
-
-async function initializeSystem() {
-  if (systemInitialized) return;
-  
-  try {
-    // Initialize Mastra
-    await initializeMastra();
-
-    // Start Discord bot
-    await startDiscordBot();
-
-    systemInitialized = true;
-    console.log('✅ Edge Control Support System fully initialized');
-  } catch (error) {
-    console.error('❌ System initialization failed:', error);
-    throw error;
-  }
-}
-
-// Initialize on first request
-app.use(async (c, next) => {
-  if (!systemInitialized) {
-    await initializeSystem();
-  }
+// Request logging middleware
+app.use('*', async (c, next) => {
+  const start = Date.now();
   await next();
+  const duration = Date.now() - start;
+  
+  logger.info({
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    duration,
+  }, 'HTTP Request');
 });
 
-// Inngest API endpoint (for workflow execution)
-app.on(['GET', 'POST', 'PUT'], '/api/inngest', serve({
+// Inngest API endpoint (for workflow execution and webhooks)
+app.route('/api/inngest', serve({
   client: inngest,
   functions: [edgeControlWorkflow],
+  streaming: 'allow',
+  signingKey: process.env.INNGEST_SIGNING_KEY,
 }));
 
 // Agent API endpoint (for testing)
@@ -84,9 +75,158 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'Edge Control Support Bot',
-    initialized: systemInitialized,
     timestamp: new Date().toISOString(),
   });
+});
+
+// Metrics endpoint (Prometheus format)
+app.get('/metrics', async (c) => {
+  return c.text(await register.metrics(), 200, {
+    'Content-Type': register.contentType,
+  });
+});
+
+// Admin API - Get failed conversations
+app.get('/api/admin/failed-conversations', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    const client = await pgPool.connect();
+    
+    const result = await client.query(
+      'SELECT * FROM failed_conversations ORDER BY created_at DESC LIMIT $1',
+      [limit]
+    );
+    
+    client.release();
+    return c.json({
+      success: true,
+      count: result.rows.length,
+      conversations: result.rows,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch failed conversations');
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+});
+
+// Admin API - Get conversation by threadId
+app.get('/api/admin/conversation/:threadId', async (c) => {
+  try {
+    const threadId = c.req.param('threadId');
+    const client = await pgPool.connect();
+    
+    const result = await client.query(
+      'SELECT * FROM mastra_memory WHERE thread_id = $1 ORDER BY created_at ASC',
+      [threadId]
+    );
+    
+    client.release();
+    return c.json({
+      success: true,
+      threadId,
+      messageCount: result.rows.length,
+      messages: result.rows,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch conversation');
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+});
+
+// Admin API - Get bot statistics
+app.get('/api/admin/stats', async (c) => {
+  try {
+    const client = await pgPool.connect();
+    
+    const [conversations, failedConversations, rateLimits, channelConfigs] = await Promise.all([
+      client.query('SELECT COUNT(DISTINCT thread_id) as count FROM mastra_memory'),
+      client.query('SELECT COUNT(*) as count FROM failed_conversations'),
+      client.query('SELECT COUNT(*) as count FROM rate_limits'),
+      client.query('SELECT COUNT(*) as count FROM channel_config WHERE is_active = true'),
+    ]);
+    
+    const queueStats = await getQueueStats();
+    
+    client.release();
+    
+    return c.json({
+      success: true,
+      stats: {
+        totalConversations: parseInt(conversations.rows[0].count),
+        failedConversations: parseInt(failedConversations.rows[0].count),
+        rateLimitedUsers: parseInt(rateLimits.rows[0].count),
+        activeChannels: parseInt(channelConfigs.rows[0].count),
+        queue: queueStats,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch stats');
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+});
+
+// Admin API - Get channel configuration
+app.get('/api/admin/channels', async (c) => {
+  try {
+    const client = await pgPool.connect();
+    const result = await client.query(
+      'SELECT * FROM channel_config ORDER BY created_at DESC'
+    );
+    client.release();
+    
+    return c.json({
+      success: true,
+      count: result.rows.length,
+      channels: result.rows,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch channels');
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+});
+
+// Admin API - Update channel configuration
+app.post('/api/admin/channels/:channelId', async (c) => {
+  try {
+    const channelId = c.req.param('channelId');
+    const body = await c.req.json();
+    const { language, ampecoTenantUrl, features, isActive } = body;
+    
+    const client = await pgPool.connect();
+    const result = await client.query(
+      `INSERT INTO channel_config (channel_id, guild_id, language, ampeco_tenant_url, features, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (channel_id) 
+       DO UPDATE SET 
+         language = COALESCE($3, channel_config.language),
+         ampeco_tenant_url = COALESCE($4, channel_config.ampeco_tenant_url),
+         features = COALESCE($5, channel_config.features),
+         is_active = COALESCE($6, channel_config.is_active),
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [channelId, body.guildId || 'unknown', language, ampecoTenantUrl, JSON.stringify(features || {}), isActive]
+    );
+    client.release();
+    
+    return c.json({
+      success: true,
+      channel: result.rows[0],
+    });
+  } catch (error) {
+    logger.error({ error }, 'Failed to update channel config');
+    return c.json({ success: false, error: 'Database error' }, 500);
+  }
+});
+
+// Admin API - Get queue statistics
+app.get('/api/admin/queue', async (c) => {
+  try {
+    const stats = await getQueueStats();
+    return c.json({ success: true, queue: stats });
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch queue stats');
+    return c.json({ success: false, error: 'Queue error' }, 500);
+  }
 });
 
 // Home page
@@ -186,19 +326,6 @@ curl -X POST http://localhost:3000/api/agents/edgeControlAgent/generate-legacy \
     </body>
     </html>
   `);
-});
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n⏳ Shutting down gracefully...');
-  await stopDiscordBot();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n⏳ Shutting down gracefully...');
-  await stopDiscordBot();
-  process.exit(0);
 });
 
 export default app;

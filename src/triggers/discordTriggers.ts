@@ -1,12 +1,16 @@
 import { Client, GatewayIntentBits, Events, Message, Interaction } from 'discord.js';
-import { inngest } from '../mastra/inngest';
-import { checkRateLimit, isGreeting } from '../mastra/utils/ampecoUtils';
+import { checkRateLimit, isGreeting, updateSessionActivity, isSessionExpired } from '../mastra/utils/ampecoUtils';
+import { enqueueMessage } from '../utils/messageQueue';
+import { logger } from '../utils/logger';
+import { messagesProcessed, rateLimitViolations } from '../utils/metrics';
+import { detectLanguage } from '../mastra/utils/ampecoUtils';
+import { getFallbackResponse } from '../utils/fallbackHandler';
 
 // Duplicate message prevention
 const processedMessages = new Set<string>();
 const MESSAGE_EXPIRY = 60000; // 1 minute
 
-// Initialize Discord client
+// Initialize Discord client - EXPORT for reuse
 export const discordClient = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -20,7 +24,7 @@ export const discordClient = new Client({
 export async function startDiscordBot() {
   try {
     discordClient.once(Events.ClientReady, (client) => {
-      console.log(`✅ Discord bot ready! Logged in as ${client.user.tag}`);
+      logger.info({ tag: client.user.tag }, '✅ Discord bot ready!');
     });
 
     // Handle messages
@@ -39,6 +43,8 @@ export async function startDiscordBot() {
         // Rate limiting
         const rateLimitCheck = checkRateLimit(message.author.id);
         if (!rateLimitCheck.allowed) {
+          rateLimitViolations.inc({ user_id: message.author.id });
+          
           await message.reply(
             `⏳ אנא המתן ${rateLimitCheck.resetIn} שניות לפני שליחת הודעה נוספת.\n` +
             `Please wait ${rateLimitCheck.resetIn} seconds before sending another message.`
@@ -46,11 +52,18 @@ export async function startDiscordBot() {
           return;
         }
 
+        // Check session expiration
+        const baseThreadId = `discord-${message.channelId}-${message.author.id}`;
+        const isExpired = !isGreeting(message.content) && isSessionExpired(baseThreadId);
+        
         // Generate thread ID
-        const isNewConv = isGreeting(message.content);
+        const isNewConv = isGreeting(message.content) || isExpired;
         const threadId = isNewConv
-          ? `discord-${message.channelId}-${message.author.id}-${Date.now()}`
-          : `discord-${message.channelId}-${message.author.id}`;
+          ? `${baseThreadId}-${Date.now()}`
+          : baseThreadId;
+
+        // Update session activity
+        updateSessionActivity(threadId);
 
         // Show typing indicator
         await message.channel.sendTyping();
@@ -61,25 +74,35 @@ export async function startDiscordBot() {
           contentType: att.contentType || 'unknown',
         }));
 
-        // Send event to Inngest workflow
-        await inngest.send({
-          name: 'discord/message.received',
-          data: {
-            messageId: message.id,
-            channelId: message.channelId,
-            userId: message.author.id,
-            username: message.author.username,
-            content: message.content,
-            threadId,
-            isNewConversation: isNewConv,
-            attachments,
-          },
+        // Add message to queue instead of direct Inngest call
+        await enqueueMessage({
+          messageId: message.id,
+          channelId: message.channelId,
+          userId: message.author.id,
+          username: message.author.username,
+          content: message.content,
+          threadId,
+          isNewConversation: isNewConv,
+          attachments,
         });
 
-        console.log(`📨 Message received from ${message.author.username}: ${message.content.substring(0, 50)}...`);
+        messagesProcessed.inc({ status: 'queued' });
+        
+        logger.info(
+          { 
+            userId: message.author.id, 
+            threadId, 
+            isNewConv,
+            messageLength: message.content.length 
+          }, 
+          '📨 Message enqueued'
+        );
       } catch (error) {
-        console.error('Error handling message:', error);
-        await message.reply('❌ מצטער, נתקלתי בבעיה. אנא נסה שוב או פנה לתמיכה.');
+        logger.error({ error, userId: message.author.id }, 'Error handling message');
+        messagesProcessed.inc({ status: 'error' });
+        
+        const lang = detectLanguage(message.content);
+        await message.reply(getFallbackResponse(lang));
       }
     });
 
@@ -115,20 +138,7 @@ export async function startDiscordBot() {
             ephemeral: true,
           });
 
-          // Send event for human agent request
-          await inngest.send({
-            name: 'discord/button.clicked',
-            data: {
-              interactionId: interaction.id,
-              channelId,
-              userId,
-              username: interaction.user.username,
-              buttonId: 'human_agent',
-              threadId: `discord-${channelId}-${userId}`,
-            },
-          });
-
-          console.log(`🙋 Human agent requested by user ${userId}`);
+          logger.info({ userId, channelId }, '🙋 Human agent requested');
           return;
         }
 
@@ -143,11 +153,11 @@ export async function startDiscordBot() {
             ephemeral: true,
           });
 
-          console.log(`✅ Chat ended by user ${userId}`);
+          logger.info({ userId, channelId }, '✅ Chat ended');
           return;
         }
       } catch (error) {
-        console.error('Error handling interaction:', error);
+        logger.error({ error, userId: interaction.user.id }, 'Error handling interaction');
         if (interaction.isButton() && !interaction.replied) {
           await interaction.reply({
             content: '❌ שגיאה בעיבוד הלחיצה. אנא נסה שוב.',
@@ -162,7 +172,7 @@ export async function startDiscordBot() {
     
     return discordClient;
   } catch (error) {
-    console.error('❌ Failed to start Discord bot:', error);
+    logger.error({ error }, '❌ Failed to start Discord bot');
     throw error;
   }
 }
@@ -172,9 +182,9 @@ export async function stopDiscordBot() {
   try {
     if (discordClient) {
       await discordClient.destroy();
-      console.log('✅ Discord bot stopped');
+      logger.info('✅ Discord bot stopped');
     }
   } catch (error) {
-    console.error('Error stopping Discord bot:', error);
+    logger.error({ error }, 'Error stopping Discord bot');
   }
 }

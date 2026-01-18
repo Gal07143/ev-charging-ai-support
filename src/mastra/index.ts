@@ -3,6 +3,7 @@ import { edgeControlAgent } from './agents/edgeControlAgent';
 import { edgeControlWorkflow } from './workflows/edgeControlWorkflow';
 import { inngest } from './inngest';
 import { memory, testDatabaseConnection, initializeDatabase } from './storage';
+import { logger } from '../utils/logger';
 
 // Initialize Mastra
 export const mastra = new Mastra({
@@ -19,7 +20,7 @@ export const mastra = new Mastra({
 // Initialize system
 export async function initializeMastra() {
   try {
-    console.log('🚀 Initializing Edge Control Support System...');
+    logger.info('🚀 Initializing Edge Control Support System...');
 
     // Test database connection
     const dbConnected = await testDatabaseConnection();
@@ -30,13 +31,13 @@ export async function initializeMastra() {
     // Initialize database schema
     await initializeDatabase();
 
-    console.log('✅ Mastra initialized successfully');
-    console.log('📋 Registered agents:', Object.keys(mastra.agents || {}).join(', '));
-    console.log('🔄 Registered workflows:', Object.keys(mastra.workflows || {}).join(', '));
+    logger.info('✅ Mastra initialized successfully');
+    logger.info({ agents: Object.keys(mastra.agents || {}) }, 'Registered agents');
+    logger.info({ workflows: Object.keys(mastra.workflows || {}) }, 'Registered workflows');
 
     return mastra;
   } catch (error) {
-    console.error('❌ Failed to initialize Mastra:', error);
+    logger.error({ error }, '❌ Failed to initialize Mastra');
     throw error;
   }
 }

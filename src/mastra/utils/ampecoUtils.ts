@@ -1,4 +1,5 @@
 import NodeCache from 'node-cache';
+import { logger } from '../../utils/logger';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -9,6 +10,11 @@ const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 // Rate limiting store
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// Helper function for delays
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * Rate limiter for user messages
@@ -44,7 +50,7 @@ const AMPECO_API_KEY = process.env.AMPECO_API_KEY || '';
 const AMPECO_TENANT_URL = process.env.AMPECO_TENANT_URL || '';
 
 /**
- * Base Ampeco API request function
+ * Base Ampeco API request function with retry logic
  */
 export async function ampecoRequest<T>(
   endpoint: string,
@@ -56,53 +62,101 @@ export async function ampecoRequest<T>(
   } = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   const { method = 'GET', body, useCache = true, cacheTTL = 300 } = options;
+  const maxRetries = 3;
 
   // Check cache for GET requests
   const cacheKey = `ampeco:${method}:${endpoint}:${JSON.stringify(body || {})}`;
   if (method === 'GET' && useCache) {
     const cached = cache.get<T>(cacheKey);
     if (cached) {
+      logger.debug({ cacheKey }, 'Ampeco API cache hit');
       return { success: true, data: cached };
     }
   }
 
-  try {
-    const url = `${AMPECO_TENANT_URL}${endpoint}`;
-    const headers: HeadersInit = {
-      'Authorization': `Bearer ${AMPECO_API_KEY}`,
-      'Content-Type': 'application/json',
-    };
+  let lastError: any;
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Ampeco API error (${response.status}):`, errorText);
-      return {
-        success: false,
-        error: `API request failed: ${response.status} ${response.statusText}`,
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const url = `${AMPECO_TENANT_URL}${endpoint}`;
+      const headers: HeadersInit = {
+        'Authorization': `Bearer ${AMPECO_API_KEY}`,
+        'Content-Type': 'application/json',
       };
+
+      logger.debug({ method, url, attempt }, 'Ampeco API request');
+
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '2') * 1000;
+        logger.warn({ attempt, retryAfter }, 'Ampeco API rate limited, retrying...');
+        
+        if (attempt < maxRetries) {
+          await sleep(retryAfter);
+          continue;
+        }
+        
+        return {
+          success: false,
+          error: 'API rate limit exceeded. Please try again later.',
+        };
+      }
+
+      // Handle server errors with retry
+      if (response.status >= 500) {
+        logger.warn({ status: response.status, attempt }, 'Ampeco API server error, retrying...');
+        
+        if (attempt < maxRetries) {
+          await sleep(1000 * attempt); // Exponential backoff
+          continue;
+        }
+        
+        return {
+          success: false,
+          error: `API server error: ${response.status}`,
+        };
+      }
+
+      // Handle client errors (don't retry)
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error({ status: response.status, errorText }, 'Ampeco API client error');
+        return {
+          success: false,
+          error: `API request failed: ${response.status} ${response.statusText}`,
+        };
+      }
+
+      const data = await response.json();
+
+      // Cache successful GET requests
+      if (method === 'GET' && useCache) {
+        cache.set(cacheKey, data, cacheTTL);
+      }
+
+      logger.debug({ method, url }, 'Ampeco API request successful');
+      return { success: true, data };
+
+    } catch (error) {
+      lastError = error;
+      logger.error({ error, attempt }, 'Ampeco API request error');
+      
+      if (attempt < maxRetries) {
+        await sleep(1000 * attempt); // Exponential backoff
+      }
     }
-
-    const data = await response.json();
-
-    // Cache successful GET requests
-    if (method === 'GET' && useCache) {
-      cache.set(cacheKey, data, cacheTTL);
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Ampeco API request error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
   }
+
+  return {
+    success: false,
+    error: `Failed after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`,
+  };
 }
 
 /**
@@ -256,3 +310,47 @@ export function detectLanguage(text: string): 'he' | 'en' | 'ru' | 'ar' | 'unkno
   
   return 'unknown';
 }
+
+/**
+ * Session timeout management
+ */
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const sessionActivityStore = new Map<string, number>();
+
+export function updateSessionActivity(threadId: string): void {
+  sessionActivityStore.set(threadId, Date.now());
+}
+
+export function isSessionExpired(threadId: string): boolean {
+  const lastActivity = sessionActivityStore.get(threadId);
+  if (!lastActivity) return true;
+  
+  const now = Date.now();
+  const isExpired = (now - lastActivity) > SESSION_TIMEOUT;
+  
+  if (isExpired) {
+    logger.debug({ threadId }, 'Session expired');
+    sessionActivityStore.delete(threadId);
+  }
+  
+  return isExpired;
+}
+
+export function clearExpiredSessions(): void {
+  const now = Date.now();
+  let clearedCount = 0;
+  
+  for (const [threadId, lastActivity] of sessionActivityStore.entries()) {
+    if ((now - lastActivity) > SESSION_TIMEOUT) {
+      sessionActivityStore.delete(threadId);
+      clearedCount++;
+    }
+  }
+  
+  if (clearedCount > 0) {
+    logger.info({ clearedCount }, 'Cleared expired sessions');
+  }
+}
+
+// Run cleanup every 5 minutes
+setInterval(clearExpiredSessions, 5 * 60 * 1000);

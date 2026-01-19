@@ -5,6 +5,10 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import OpenAI from 'openai';
 import Database from 'better-sqlite3';
 import path from 'path';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 
 const app = new Hono();
 

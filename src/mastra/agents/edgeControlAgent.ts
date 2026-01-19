@@ -18,6 +18,7 @@ import { scoreConversationQualityTool, getQualityAnalyticsTool, getLowQualityCon
 import { predictSessionOutcomeTool, detectAnomaliesTool, sendProactiveNotificationTool, getHighRiskUsersTool, getActiveAnomaliesTool } from '../tools/predictiveDetectionTools';
 import { uploadMediaTool, getOCRResultsTool, getTranscriptionTool, getMediaStatusTool, analyzeStationImageAdvancedTool, getRecentMediaTool } from '../tools/richMediaTools';
 import { getDashboardMetricsTool, getRealtimeMetricsTool, getGeographicHotspotsTool, getToolEffectivenessTool, getTrendAnalysisTool, exportDashboardDataTool, getExportStatusTool, getPerformanceSummaryTool } from '../tools/analyticsDashboardTools';
+import { searchEVModelsTool, checkVehicleChargerCompatibilityTool, getOEMChargingQuirksTool, getPopularEVModelsTool } from '../tools/vehicleCompatibilityTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -835,6 +836,12 @@ export const edgeControlAgent = new Agent({
     exportDashboardData: exportDashboardDataTool,
     getExportStatus: getExportStatusTool,
     getPerformanceSummary: getPerformanceSummaryTool,
+    
+    // Vehicle-Charger Compatibility Tools - EV model database and compatibility checks
+    searchEVModels: searchEVModelsTool,
+    checkVehicleChargerCompatibility: checkVehicleChargerCompatibilityTool,
+    getOEMChargingQuirks: getOEMChargingQuirksTool,
+    getPopularEVModels: getPopularEVModelsTool,
   },
   memory,
 });

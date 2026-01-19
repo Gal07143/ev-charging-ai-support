@@ -21,6 +21,7 @@ import { getDashboardMetricsTool, getRealtimeMetricsTool, getGeographicHotspotsT
 import { searchEVModelsTool, checkVehicleChargerCompatibilityTool, getOEMChargingQuirksTool, getPopularEVModelsTool } from '../tools/vehicleCompatibilityTools';
 import { loadAPIFromURLTool, callDynamicAPITool, getAvailableAPIsTool, getAPIEndpointsTool, checkAPIHealthTool, getAPIPerformanceTool, toggleAPIEndpointTool, addAPIFallbackTool } from '../tools/dynamicAPITools';
 import { analyzeMessageSentimentTool, getConversationTrajectoryTool, getHighRiskConversationsTool, getResponseTemplateTool, getSentimentTrendsTool } from '../tools/sentimentAnalysisTools';
+import { getCacheStatsTool, invalidateCacheTool, getCircuitBreakerStatusTool, resetCircuitBreakerTool, cleanupExpiredCacheTool, getCachePerformanceByTypeTool } from '../tools/cachingTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -861,6 +862,14 @@ export const edgeControlAgent = new Agent({
     getHighRiskConversations: getHighRiskConversationsTool,
     getResponseTemplate: getResponseTemplateTool,
     getSentimentTrends: getSentimentTrendsTool,
+    
+    // Caching & Circuit Breaker Tools (Feature #14)
+    getCacheStats: getCacheStatsTool,
+    invalidateCache: invalidateCacheTool,
+    getCircuitBreakerStatus: getCircuitBreakerStatusTool,
+    resetCircuitBreaker: resetCircuitBreakerTool,
+    cleanupExpiredCache: cleanupExpiredCacheTool,
+    getCachePerformanceByType: getCachePerformanceByTypeTool,
   },
   memory,
 });

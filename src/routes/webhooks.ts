@@ -11,7 +11,7 @@
  */
 
 import { Hono } from 'hono';
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 import Database from 'better-sqlite3';
 
 const webhookApp = new Hono();

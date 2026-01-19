@@ -11,6 +11,11 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { config } from 'dotenv';
 
+// Import new route modules
+import webhookApp from './src/routes/webhooks.js';
+import analyticsApp from './src/routes/analytics.js';
+import rfidApp from './src/routes/rfid.js';
+
 // Load environment variables from .env file
 config();
 
@@ -47,11 +52,6 @@ app.use('*', async (c, next) => {
   const duration = Date.now() - start;
   console.log(`${c.req.method} ${c.req.path} - ${c.res.status} (${duration}ms)`);
 });
-
-// Import new route modules
-import webhookApp from './src/routes/webhooks';
-import analyticsApp from './src/routes/analytics';
-import rfidApp from './src/routes/rfid';
 
 // Mount new routes
 app.route('/api/webhooks', webhookApp);

@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono';
 import Database from 'better-sqlite3';
-import { logger } from '../../utils/logger';
+import { logger } from '../utils/logger';
 import { ampecoRequest } from '../mastra/utils/ampecoUtils';
 
 const analyticsApp = new Hono();

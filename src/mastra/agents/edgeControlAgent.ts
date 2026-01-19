@@ -15,6 +15,7 @@ import { startDiagnosticWorkflowTool, continueDiagnosticWorkflowTool, findMatchi
 import { searchChargerModelsTool, lookupErrorCodeTool, getChargerSpecsTool, searchTroubleshootingTool, checkVehicleCompatibilityTool, getChargerStatsTool } from '../tools/chargerDatabaseTools';
 import { checkEscalationTool, createEscalationTicketTool, getEscalationAnalyticsTool, getActiveEscalationsTool, resolveEscalationTool } from '../tools/escalationTools';
 import { scoreConversationQualityTool, getQualityAnalyticsTool, getLowQualityConversationsTool, getToolEffectivenessTool } from '../tools/qualityScoringTools';
+import { predictSessionOutcomeTool, detectAnomaliesTool, sendProactiveNotificationTool, getHighRiskUsersTool, getActiveAnomaliesTool } from '../tools/predictiveDetectionTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -760,6 +761,13 @@ export const edgeControlAgent = new Agent({
     getQualityAnalytics: getQualityAnalyticsTool,
     getLowQualityConversations: getLowQualityConversationsTool,
     getToolEffectiveness: getToolEffectivenessTool,
+    
+    // Predictive Detection Tools - ML-based predictions & proactive alerts
+    predictSessionOutcome: predictSessionOutcomeTool,
+    detectAnomalies: detectAnomaliesTool,
+    sendProactiveNotification: sendProactiveNotificationTool,
+    getHighRiskUsers: getHighRiskUsersTool,
+    getActiveAnomalies: getActiveAnomaliesTool,
   },
   memory,
 });

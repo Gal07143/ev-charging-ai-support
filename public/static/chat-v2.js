@@ -339,7 +339,8 @@ async function sendChatRequest(messages, threadId, language, fileId) {
       messages,
       threadId,
       language,
-      fileId
+      fileId,
+      stream: false  // Disable streaming to get JSON response
     }),
   });
   

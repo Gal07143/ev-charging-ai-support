@@ -23,6 +23,7 @@ import { loadAPIFromURLTool, callDynamicAPITool, getAvailableAPIsTool, getAPIEnd
 import { analyzeMessageSentimentTool, getConversationTrajectoryTool, getHighRiskConversationsTool, getResponseTemplateTool, getSentimentTrendsTool } from '../tools/sentimentAnalysisTools';
 import { getCacheStatsTool, invalidateCacheTool, getCircuitBreakerStatusTool, resetCircuitBreakerTool, cleanupExpiredCacheTool, getCachePerformanceByTypeTool } from '../tools/cachingTools';
 import { checkDocSourceTool, getPendingKBReviewsTool, getKBScrapingHealthTool, getRecentKBChangesTool } from '../tools/automatedKBTools';
+import { searchConversationsTool, getSimilarConversationsTool, getConversationSummaryTool, getHighQualityResolutionsTool, getSearchAnalyticsTool } from '../tools/conversationSearchTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -877,6 +878,13 @@ export const edgeControlAgent = new Agent({
     getPendingKBReviews: getPendingKBReviewsTool,
     getKBScrapingHealth: getKBScrapingHealthTool,
     getRecentKBChanges: getRecentKBChangesTool,
+    
+    // Conversation Search Tools (Feature #16)
+    searchConversations: searchConversationsTool,
+    getSimilarConversations: getSimilarConversationsTool,
+    getConversationSummary: getConversationSummaryTool,
+    getHighQualityResolutions: getHighQualityResolutionsTool,
+    getSearchAnalytics: getSearchAnalyticsTool,
   },
   memory,
 });

@@ -16,6 +16,7 @@ import { searchChargerModelsTool, lookupErrorCodeTool, getChargerSpecsTool, sear
 import { checkEscalationTool, createEscalationTicketTool, getEscalationAnalyticsTool, getActiveEscalationsTool, resolveEscalationTool } from '../tools/escalationTools';
 import { scoreConversationQualityTool, getQualityAnalyticsTool, getLowQualityConversationsTool, getToolEffectivenessTool } from '../tools/qualityScoringTools';
 import { predictSessionOutcomeTool, detectAnomaliesTool, sendProactiveNotificationTool, getHighRiskUsersTool, getActiveAnomaliesTool } from '../tools/predictiveDetectionTools';
+import { uploadMediaTool, getOCRResultsTool, getTranscriptionTool, getMediaStatusTool, analyzeStationImageAdvancedTool, getRecentMediaTool } from '../tools/richMediaTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -661,6 +662,53 @@ Edge Control לא מתקינה עמדות ביתיות, אך אנחנו ממלי
 - **tariff**: מחירים לעמדה
 - **analyze image**: ניתוח תמונה של עמדה
 - **track failed conversation**: לוג בעיה לנציג אנושי
+- **uploadMedia**: העלאת תמונה/אודיו/וידאו לעיבוד
+- **getOCRResults**: קבלת טקסט מתמונה (OCR)
+- **getTranscription**: קבלת תמלול משמע (Whisper)
+- **getMediaStatus**: בדיקת סטטוס עיבוד מדיה
+- **analyzeStationImageAdvanced**: ניתוח מתקדם של תמונת עמדה עם GPT-4V
+
+### 🎥📸🎤 תמיכה במדיה עשירה (Rich Media Support)
+
+**אם לקוח מעלה תמונה, קובץ אודיו, או וידאו:**
+
+1. **תמונות (OCR + Image Analysis)**:
+   - השתמש ב-**uploadMedia** להעלות קובץ
+   - השתמש ב-**getOCRResults** לחלץ טקסט מהתמונה
+   - השתמש ב-**analyzeStationImageAdvanced** לניתוח GPT-4V
+   - שימושי למסכי שגיאה, מספרי עמדות, קודי שגיאה
+
+2. **אודיו (Voice Transcription)**:
+   - השתמש ב-**uploadMedia** להעלות קובץ
+   - השתמש ב-**getTranscription** לקבל תמלול
+   - תומך בעברית, אנגלית, רוסית, ערבית
+   - שימושי ללקוחות שמעדיפים שליחת הודעה קולית
+
+3. **וידאו (Video Analysis)**:
+   - השתמש ב-**uploadMedia** להעלות קובץ
+   - השתמש ב-**getMediaStatus** לבדוק מצב עיבוד
+   - שימושי לצילומי בעיות בתחנת הטעינה
+
+**תהליך מומלץ**:
+```
+1. לקוח מעלה תמונה/אודיו
+2. אדג': "אני רואה שהעלית [תמונה/קול], רגע אחד אני מעבד..."
+3. [העלה עם uploadMedia, קבל mediaId]
+4. [חכה לעיבוד, בדוק עם getMediaStatus]
+5. [חלץ תוכן עם getOCRResults או getTranscription]
+6. אדג': "הבנתי! אני רואה [קוד שגיאה/מספר עמדה] בתמונה. בוא נפתור את זה..."
+```
+
+**דוגמאות שימוש**:
+- **OCR**: "אני רואה בתמונה שלך Error Code: E42 - זה אומר שיש בעיה בתקשורת"
+- **Transcription**: "שמעתי אותך בהודעה - אתה אומר שהעמדה לא מגיבה כבר 10 דקות, נכון?"
+- **Image Analysis**: "רואים בתמונה שהמסך כבוי לגמרי - צריך לעשות hard reset"
+
+**שימושים נפוצים**:
+1. **מסכי שגיאה**: לקוח צילם תצוגת שגיאה → OCR מחלץ את קוד השגיאה
+2. **לקוח לא יכול לכתוב**: לקוח שולח הודעת קול → Whisper מתמלל
+3. **תיעוד ויזואלי**: לקוח צילם עמדה → GPT-4V מאתר בעיות חזותיות
+4. **הוכחת תקלה**: לקוח מצלם וידאו של עמדה שלא עובדת → אנליזה מסגרות
 
 השתמש בכלים רק כשצריך - **אל תשתמש בהם רק כדי להראות שאתה עושה משהו**.
 
@@ -768,6 +816,14 @@ export const edgeControlAgent = new Agent({
     sendProactiveNotification: sendProactiveNotificationTool,
     getHighRiskUsers: getHighRiskUsersTool,
     getActiveAnomalies: getActiveAnomaliesTool,
+    
+    // Rich Media Tools - OCR, voice transcription, image/video analysis
+    uploadMedia: uploadMediaTool,
+    getOCRResults: getOCRResultsTool,
+    getTranscription: getTranscriptionTool,
+    getMediaStatus: getMediaStatusTool,
+    analyzeStationImageAdvanced: analyzeStationImageAdvancedTool,
+    getRecentMedia: getRecentMediaTool,
   },
   memory,
 });

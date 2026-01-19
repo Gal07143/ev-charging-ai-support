@@ -11,7 +11,7 @@
     {
       "binding": "DB",
       "database_name": "edge-control-db",
-      "database_id": "" // Will be filled after creating database
+      "database_id": "local-only"
     }
   ]
 }

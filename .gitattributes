@@ -1,0 +1,13 @@
+# Git attributes for better diff and language detection
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+*.js linguist-language=JavaScript
+*.sql linguist-language=SQL
+
+# Ensure consistent line endings
+* text=auto
+*.ts text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.sql text eol=lf

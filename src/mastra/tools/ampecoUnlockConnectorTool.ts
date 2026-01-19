@@ -22,10 +22,13 @@ export const ampecoUnlockConnectorTool = createTool({
         };
       }
 
-      const { evse } = findResult;
+      const { station, evse } = findResult;
+
+      // Get connector ID (use first connector if available)
+      const connectorId = evse?.connectors?.[0]?.id || '1';
 
       // Unlock connector
-      const unlockResult = await unlockConnector(evse.id);
+      const unlockResult = await unlockConnector(station.id.toString(), connectorId.toString());
 
       if (!unlockResult.success) {
         return {
@@ -36,8 +39,9 @@ export const ampecoUnlockConnectorTool = createTool({
 
       return {
         success: true,
-        message: `Connector at station ${socketNumber} unlocked successfully`,
-        evseId: evse.id,
+        message: `Connector at charge point ${socketNumber} unlocked successfully`,
+        chargePointId: station.id,
+        connectorId,
         instruction: 'Customer can now remove the cable. If still stuck, wait 30 seconds and try pulling gently.',
       };
     } catch (error) {

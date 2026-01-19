@@ -160,31 +160,44 @@ export async function ampecoRequest<T>(
 }
 
 /**
- * Find station by socket number
+ * Find station by socket number (charge point)
+ * Uses Ampeco's charge-points endpoint
  */
 export async function findStationBySocketNumber(
   socketNumber: string
 ): Promise<{ success: boolean; station?: any; evse?: any; error?: string }> {
   try {
-    // Search for station by socket number
-    const result = await ampecoRequest<any>('/api/v1/stations', {
+    // Search for station by socket number using Ampeco's public API
+    const result = await ampecoRequest<any>('/public-api/resources/charge-points/v1.0', {
       method: 'GET',
     });
 
     if (!result.success || !result.data) {
-      return { success: false, error: 'Failed to fetch stations' };
+      return { success: false, error: 'Failed to fetch charge points' };
     }
 
-    // Find station with matching socket number
-    for (const station of result.data.stations || []) {
-      for (const evse of station.evses || []) {
-        if (evse.socketNumber === socketNumber || evse.uid === socketNumber) {
-          return { success: true, station, evse };
+    // Find charge point with matching ID or network ID
+    for (const chargePoint of result.data.data || []) {
+      // Check if the charge point ID or networkId matches
+      if (chargePoint.id === socketNumber || 
+          chargePoint.networkId === socketNumber ||
+          chargePoint.name === socketNumber) {
+        // Return first EVSE if available
+        const evse = chargePoint.evses?.[0];
+        return { success: true, station: chargePoint, evse };
+      }
+      
+      // Also check within EVSEs
+      for (const evse of chargePoint.evses || []) {
+        if (evse.id === socketNumber || 
+            evse.networkId === socketNumber ||
+            evse.physicalReference === socketNumber) {
+          return { success: true, station: chargePoint, evse };
         }
       }
     }
 
-    return { success: false, error: `Station with socket number ${socketNumber} not found` };
+    return { success: false, error: `Charge point with identifier ${socketNumber} not found` };
   } catch (error) {
     return {
       success: false,
@@ -194,10 +207,10 @@ export async function findStationBySocketNumber(
 }
 
 /**
- * Get station status
+ * Get charge point status
  */
 export async function getStationStatus(stationId: string) {
-  return ampecoRequest(`/api/v1/stations/${stationId}`, {
+  return ampecoRequest(`/public-api/resources/charge-points/v1.0/${stationId}`, {
     method: 'GET',
     useCache: true,
     cacheTTL: 60, // 1 minute cache for real-time status
@@ -205,10 +218,10 @@ export async function getStationStatus(stationId: string) {
 }
 
 /**
- * Reset station
+ * Reset charge point
  */
 export async function resetStation(stationId: string, resetType: 'soft' | 'hard' = 'soft') {
-  return ampecoRequest(`/api/v1/stations/${stationId}/reset`, {
+  return ampecoRequest(`/public-api/actions/charge-point/v1.0/${stationId}/reset`, {
     method: 'POST',
     body: { type: resetType },
     useCache: false,
@@ -216,31 +229,56 @@ export async function resetStation(stationId: string, resetType: 'soft' | 'hard'
 }
 
 /**
- * Unlock connector
+ * Unlock connector on charge point
  */
-export async function unlockConnector(evseId: string) {
-  return ampecoRequest(`/api/v1/evses/${evseId}/unlock`, {
+export async function unlockConnector(chargePointId: string, connectorId: string) {
+  return ampecoRequest(`/public-api/actions/charge-point/v1.0/${chargePointId}/unlock-connector`, {
     method: 'POST',
+    body: { connectorId },
     useCache: false,
   });
 }
 
 /**
- * Get active charging session
+ * Get active charging sessions
+ * Note: Ampeco's sessions endpoint returns all sessions
  */
-export async function getActiveSession(stationId: string) {
-  return ampecoRequest(`/api/v1/stations/${stationId}/active-session`, {
+export async function getActiveSession(chargePointId?: string) {
+  const params = new URLSearchParams();
+  params.append('status', 'active,charging'); // Filter for active sessions only
+  
+  const queryString = params.toString();
+  const result = await ampecoRequest<any>(`/public-api/resources/sessions/v1.0?${queryString}`, {
     method: 'GET',
     useCache: true,
     cacheTTL: 30, // 30 seconds cache
   });
+
+  if (!result.success || !chargePointId) {
+    return result;
+  }
+
+  // Filter to get sessions for specific charge point
+  if (result.data?.data) {
+    const filteredData = result.data.data.filter(
+      (session: any) => session.chargePointId === parseInt(chargePointId)
+    );
+    return { ...result, data: { ...result.data, data: filteredData } };
+  }
+
+  return result;
 }
 
 /**
  * Get session history
  */
-export async function getSessionHistory(userId: string, limit: number = 5) {
-  return ampecoRequest(`/api/v1/sessions?userId=${userId}&limit=${limit}`, {
+export async function getSessionHistory(userId?: string, limit: number = 10) {
+  const params = new URLSearchParams();
+  if (userId) params.append('userId', userId);
+  params.append('limit', limit.toString());
+  
+  const queryString = params.toString();
+  return ampecoRequest(`/public-api/resources/sessions/v1.0?${queryString}`, {
     method: 'GET',
     useCache: true,
     cacheTTL: 300, // 5 minutes cache
@@ -250,8 +288,12 @@ export async function getSessionHistory(userId: string, limit: number = 5) {
 /**
  * Get tariff information
  */
-export async function getTariffInfo(stationId: string) {
-  return ampecoRequest(`/api/v1/stations/${stationId}/tariff`, {
+export async function getTariffInfo(tariffId?: string) {
+  const endpoint = tariffId 
+    ? `/public-api/resources/tariffs/v1.0/${tariffId}`
+    : '/public-api/resources/tariffs/v1.0';
+  
+  return ampecoRequest(endpoint, {
     method: 'GET',
     useCache: true,
     cacheTTL: 3600, // 1 hour cache

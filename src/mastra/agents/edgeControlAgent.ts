@@ -20,6 +20,7 @@ import { uploadMediaTool, getOCRResultsTool, getTranscriptionTool, getMediaStatu
 import { getDashboardMetricsTool, getRealtimeMetricsTool, getGeographicHotspotsTool, getToolEffectivenessTool, getTrendAnalysisTool, exportDashboardDataTool, getExportStatusTool, getPerformanceSummaryTool } from '../tools/analyticsDashboardTools';
 import { searchEVModelsTool, checkVehicleChargerCompatibilityTool, getOEMChargingQuirksTool, getPopularEVModelsTool } from '../tools/vehicleCompatibilityTools';
 import { loadAPIFromURLTool, callDynamicAPITool, getAvailableAPIsTool, getAPIEndpointsTool, checkAPIHealthTool, getAPIPerformanceTool, toggleAPIEndpointTool, addAPIFallbackTool } from '../tools/dynamicAPITools';
+import { analyzeMessageSentimentTool, getConversationTrajectoryTool, getHighRiskConversationsTool, getResponseTemplateTool, getSentimentTrendsTool } from '../tools/sentimentAnalysisTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -853,6 +854,13 @@ export const edgeControlAgent = new Agent({
     getAPIPerformance: getAPIPerformanceTool,
     toggleAPIEndpoint: toggleAPIEndpointTool,
     addAPIFallback: addAPIFallbackTool,
+    
+    // Sentiment Analysis Tools (Feature #13)
+    analyzeMessageSentiment: analyzeMessageSentimentTool,
+    getConversationTrajectory: getConversationTrajectoryTool,
+    getHighRiskConversations: getHighRiskConversationsTool,
+    getResponseTemplate: getResponseTemplateTool,
+    getSentimentTrends: getSentimentTrendsTool,
   },
   memory,
 });

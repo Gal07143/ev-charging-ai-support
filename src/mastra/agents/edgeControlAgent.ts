@@ -19,6 +19,7 @@ import { predictSessionOutcomeTool, detectAnomaliesTool, sendProactiveNotificati
 import { uploadMediaTool, getOCRResultsTool, getTranscriptionTool, getMediaStatusTool, analyzeStationImageAdvancedTool, getRecentMediaTool } from '../tools/richMediaTools';
 import { getDashboardMetricsTool, getRealtimeMetricsTool, getGeographicHotspotsTool, getToolEffectivenessTool, getTrendAnalysisTool, exportDashboardDataTool, getExportStatusTool, getPerformanceSummaryTool } from '../tools/analyticsDashboardTools';
 import { searchEVModelsTool, checkVehicleChargerCompatibilityTool, getOEMChargingQuirksTool, getPopularEVModelsTool } from '../tools/vehicleCompatibilityTools';
+import { loadAPIFromURLTool, callDynamicAPITool, getAvailableAPIsTool, getAPIEndpointsTool, checkAPIHealthTool, getAPIPerformanceTool, toggleAPIEndpointTool, addAPIFallbackTool } from '../tools/dynamicAPITools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -842,6 +843,16 @@ export const edgeControlAgent = new Agent({
     checkVehicleChargerCompatibility: checkVehicleChargerCompatibilityTool,
     getOEMChargingQuirks: getOEMChargingQuirksTool,
     getPopularEVModels: getPopularEVModelsTool,
+    
+    // Dynamic API Tools (Feature #12)
+    loadAPIFromURL: loadAPIFromURLTool,
+    callDynamicAPI: callDynamicAPITool,
+    getAvailableAPIs: getAvailableAPIsTool,
+    getAPIEndpoints: getAPIEndpointsTool,
+    checkAPIHealth: checkAPIHealthTool,
+    getAPIPerformance: getAPIPerformanceTool,
+    toggleAPIEndpoint: toggleAPIEndpointTool,
+    addAPIFallback: addAPIFallbackTool,
   },
   memory,
 });

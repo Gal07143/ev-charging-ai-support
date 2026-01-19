@@ -17,6 +17,7 @@ import { checkEscalationTool, createEscalationTicketTool, getEscalationAnalytics
 import { scoreConversationQualityTool, getQualityAnalyticsTool, getLowQualityConversationsTool, getToolEffectivenessTool } from '../tools/qualityScoringTools';
 import { predictSessionOutcomeTool, detectAnomaliesTool, sendProactiveNotificationTool, getHighRiskUsersTool, getActiveAnomaliesTool } from '../tools/predictiveDetectionTools';
 import { uploadMediaTool, getOCRResultsTool, getTranscriptionTool, getMediaStatusTool, analyzeStationImageAdvancedTool, getRecentMediaTool } from '../tools/richMediaTools';
+import { getDashboardMetricsTool, getRealtimeMetricsTool, getGeographicHotspotsTool, getToolEffectivenessTool, getTrendAnalysisTool, exportDashboardDataTool, getExportStatusTool, getPerformanceSummaryTool } from '../tools/analyticsDashboardTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -824,6 +825,16 @@ export const edgeControlAgent = new Agent({
     getMediaStatus: getMediaStatusTool,
     analyzeStationImageAdvanced: analyzeStationImageAdvancedTool,
     getRecentMedia: getRecentMediaTool,
+    
+    // Analytics Dashboard Tools - Real-time metrics and reporting
+    getDashboardMetrics: getDashboardMetricsTool,
+    getRealtimeMetrics: getRealtimeMetricsTool,
+    getGeographicHotspots: getGeographicHotspotsTool,
+    getToolEffectivenessDashboard: getToolEffectivenessTool,
+    getTrendAnalysis: getTrendAnalysisTool,
+    exportDashboardData: exportDashboardDataTool,
+    getExportStatus: getExportStatusTool,
+    getPerformanceSummary: getPerformanceSummaryTool,
   },
   memory,
 });

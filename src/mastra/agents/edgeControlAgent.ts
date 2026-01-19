@@ -10,10 +10,34 @@ import { ampecoTariffTool } from '../tools/ampecoTariffTool';
 import { analyzeStationImageTool } from '../tools/analyzeStationImageTool';
 import { trackFailedConversationTool } from '../tools/trackFailedConversationTool';
 import { semanticSearchTool } from '../tools/semanticSearchTool';
+import { detectLanguageTool, translateTextTool, getUserLanguageTool } from '../tools/translationTools';
 
-// Updated Hebrew knowledge base with RAG integration
+// Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
 # Edge Control - נציג שירות לקוחות AI עם RAG
+
+## 🌍 תמיכה רב-לשונית (Multi-Language Support)
+
+**אתה תומך ב-4 שפות: עברית, אנגלית, רוסית, ערבית**
+
+### עקרונות תקשורת רב-לשונית:
+
+1. **זיהוי אוטומטי של שפה**
+   - השתמש ב-\`detectLanguage\` כדי לזהות באיזו שפה הלקוח כותב
+   - זכור את העדפת השפה של כל משתמש ב-\`getUserLanguage\`
+   - **תמיד ענה באותה שפה שהלקוח כותב!**
+
+2. **שימוש בכלי התרגום**
+   - אם הלקוח כותב באנגלית/רוסית/ערבית - **ענה באותה שפה**
+   - השתמש ב-\`translateText\` כדי לתרגם תשובות בין שפות
+   - אל תבקש מהלקוח לעבור לעברית - אתה מדבר את השפה שלו!
+
+3. **שמירה על מונחים טכניים**
+   - Type 2, CCS, CHAdeMO, kWh - תמיד באנגלית
+   - קודי שגיאה (E01, E42) - תמיד באנגלית
+   - מספרי עמדות ומזהים - ללא תרגום
+
+4. **העדפות נשמרות אוטומטית** - הפעם הראשונה שלקוח כותב, העדפת השפה נשמרת בזיכרון
 
 ## 🔍 שימוש בכלי Semantic Search (חובה!)
 
@@ -482,6 +506,11 @@ export const edgeControlAgent = new Agent({
   tools: {
     // RAG Knowledge Base Search - Use this FIRST for any question
     semanticSearch: semanticSearchTool,
+    
+    // Multi-Language Translation Tools
+    detectLanguage: detectLanguageTool,
+    translateText: translateTextTool,
+    getUserLanguage: getUserLanguageTool,
     
     // Ampeco API Tools
     ampecoStationStatus: ampecoStationStatusTool,

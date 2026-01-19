@@ -24,6 +24,7 @@ import { analyzeMessageSentimentTool, getConversationTrajectoryTool, getHighRisk
 import { getCacheStatsTool, invalidateCacheTool, getCircuitBreakerStatusTool, resetCircuitBreakerTool, cleanupExpiredCacheTool, getCachePerformanceByTypeTool } from '../tools/cachingTools';
 import { checkDocSourceTool, getPendingKBReviewsTool, getKBScrapingHealthTool, getRecentKBChangesTool } from '../tools/automatedKBTools';
 import { searchConversationsTool, getSimilarConversationsTool, getConversationSummaryTool, getHighQualityResolutionsTool, getSearchAnalyticsTool } from '../tools/conversationSearchTools';
+import { getChargerHealthTool, getCriticalAlertsTool, getUpcomingMaintenanceTool, getHealthDashboardTool, scheduleMaintenanceTool } from '../tools/proactiveMaintenanceTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -885,6 +886,13 @@ export const edgeControlAgent = new Agent({
     getConversationSummary: getConversationSummaryTool,
     getHighQualityResolutions: getHighQualityResolutionsTool,
     getSearchAnalytics: getSearchAnalyticsTool,
+    
+    // Proactive Maintenance Tools (Feature #17)
+    getChargerHealth: getChargerHealthTool,
+    getCriticalAlerts: getCriticalAlertsTool,
+    getUpcomingMaintenance: getUpcomingMaintenanceTool,
+    getHealthDashboard: getHealthDashboardTool,
+    scheduleMaintenance: scheduleMaintenanceTool,
   },
   memory,
 });

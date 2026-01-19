@@ -4,18 +4,14 @@
  */
 
 import { Hono } from 'hono';
-import Database from 'better-sqlite3';
 import { logger } from '../utils/logger';
 import { ampecoRequest } from '../mastra/utils/ampecoUtils';
+import { getDatabase } from '../utils/db';
 
 const rfidApp = new Hono();
 
-// Database connection
-const db = new Database(
-  process.env.DATABASE_URL || '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/edge-control-db.sqlite'
-);
-
-// Create RFID tables
+// Initialize database tables
+const db = getDatabase();
 db.exec(`
   CREATE TABLE IF NOT EXISTS rfid_cards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,6 +56,7 @@ db.exec(`
  */
 rfidApp.get('/cards', (c) => {
   try {
+    const db = getDatabase();
     const status = c.req.query('status');
     const userId = c.req.query('userId');
     const cardType = c.req.query('type');
@@ -127,6 +124,7 @@ rfidApp.get('/cards', (c) => {
  */
 rfidApp.post('/cards', async (c) => {
   try {
+    const db = getDatabase();
     const body = await c.req.json();
     const { cardId, cardLabel, userId, userEmail, userName, cardType, expiryDate, notes } = body;
 
@@ -186,6 +184,7 @@ rfidApp.post('/cards', async (c) => {
  */
 rfidApp.get('/cards/:cardId', (c) => {
   try {
+    const db = getDatabase();
     const cardId = c.req.param('cardId');
 
     const card = db.prepare('SELECT * FROM rfid_cards WHERE card_id = ?').get(cardId);
@@ -237,6 +236,7 @@ rfidApp.get('/cards/:cardId', (c) => {
  */
 rfidApp.patch('/cards/:cardId', async (c) => {
   try {
+    const db = getDatabase();
     const cardId = c.req.param('cardId');
     const body = await c.req.json();
 
@@ -316,6 +316,7 @@ rfidApp.patch('/cards/:cardId', async (c) => {
  */
 rfidApp.delete('/cards/:cardId', (c) => {
   try {
+    const db = getDatabase();
     const cardId = c.req.param('cardId');
 
     // Check if card exists
@@ -353,6 +354,7 @@ rfidApp.delete('/cards/:cardId', (c) => {
  */
 rfidApp.post('/authorize', async (c) => {
   try {
+    const db = getDatabase();
     const body = await c.req.json();
     const { cardId, chargePointId, evseId } = body;
 
@@ -439,6 +441,7 @@ rfidApp.post('/authorize', async (c) => {
  */
 rfidApp.get('/stats', (c) => {
   try {
+    const db = getDatabase();
     const totalCards = db.prepare('SELECT COUNT(*) as count FROM rfid_cards').get() as { count: number };
     const activeCards = db.prepare('SELECT COUNT(*) as count FROM rfid_cards WHERE status = \'active\'').get() as { count: number };
     const blockedCards = db.prepare('SELECT COUNT(*) as count FROM rfid_cards WHERE status = \'blocked\'').get() as { count: number };

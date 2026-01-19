@@ -4,16 +4,11 @@
  */
 
 import { Hono } from 'hono';
-import Database from 'better-sqlite3';
 import { logger } from '../utils/logger';
 import { ampecoRequest } from '../mastra/utils/ampecoUtils';
+import { getDatabase } from '../utils/db';
 
 const analyticsApp = new Hono();
-
-// Database connection
-const db = new Database(
-  process.env.DATABASE_URL || '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/edge-control-db.sqlite'
-);
 
 /**
  * GET /api/analytics/overview
@@ -50,12 +45,13 @@ analyticsApp.get('/overview', async (c) => {
     const totalRevenue = recentSessions.reduce((sum: number, s: any) => sum + (s.totalAmount?.withTax || 0), 0);
 
     // Get AI chat statistics
+    const db = getDatabase();
     const chatStats = db.prepare(`
       SELECT 
         COUNT(*) as total_conversations,
         COUNT(DISTINCT thread_id) as unique_threads,
-        AVG(response_time_ms) as avg_response_time
-      FROM messages 
+        0 as avg_response_time
+      FROM conversation_messages 
       WHERE created_at > datetime('now', '-24 hours')
         AND role = 'assistant'
     `).get() as any;
@@ -102,6 +98,7 @@ analyticsApp.get('/overview', async (c) => {
  */
 analyticsApp.get('/charging-sessions', async (c) => {
   try {
+    const db = getDatabase();
     const period = c.req.query('period') || '24h'; // 24h, 7d, 30d
     const limit = parseInt(c.req.query('limit') || '100');
 
@@ -182,6 +179,7 @@ analyticsApp.get('/charging-sessions', async (c) => {
  */
 analyticsApp.get('/station-performance', async (c) => {
   try {
+    const db = getDatabase();
     const chargePoints = await ampecoRequest<any>('/public-api/resources/charge-points/v1.0');
     const cpData = chargePoints.data?.data || [];
 
@@ -240,6 +238,7 @@ analyticsApp.get('/station-performance', async (c) => {
  */
 analyticsApp.get('/ai-support-metrics', (c) => {
   try {
+    const db = getDatabase();
     const period = c.req.query('period') || '24h';
     
     const periodHours = period === '7d' ? 168 : period === '30d' ? 720 : 24;
@@ -261,8 +260,8 @@ analyticsApp.get('/ai-support-metrics', (c) => {
       SELECT 
         language,
         COUNT(*) as count
-      FROM messages
-      WHERE created_at > datetime('now', '-${periodHours} hours')
+      FROM conversations
+      WHERE started_at > datetime('now', '-${periodHours} hours')
         AND language IS NOT NULL
       GROUP BY language
       ORDER BY count DESC

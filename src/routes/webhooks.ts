@@ -12,16 +12,12 @@
 
 import { Hono } from 'hono';
 import { logger } from '../utils/logger';
-import Database from 'better-sqlite3';
+import { getDatabase } from '../utils/db';
 
 const webhookApp = new Hono();
 
-// Database connection for storing webhook events
-const db = new Database(
-  process.env.DATABASE_URL || '.wrangler/state/v3/d1/miniflare-D1DatabaseObject/edge-control-db.sqlite'
-);
-
-// Create webhook events table if not exists
+// Initialize database tables
+const db = getDatabase();
 db.exec(`
   CREATE TABLE IF NOT EXISTS ampeco_webhook_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,6 +109,7 @@ function processEvent(event: AmpecoWebhookEvent): { success: boolean; action?: s
  */
 webhookApp.post('/ampeco', async (c) => {
   try {
+    const db = getDatabase();
     const event: AmpecoWebhookEvent = await c.req.json();
 
     logger.info({ event }, 'Received Ampeco webhook');
@@ -167,6 +164,7 @@ webhookApp.post('/ampeco', async (c) => {
  */
 webhookApp.get('/ampeco/events', (c) => {
   try {
+    const db = getDatabase();
     const limit = parseInt(c.req.query('limit') || '50');
     const eventType = c.req.query('type');
 
@@ -217,6 +215,7 @@ webhookApp.get('/ampeco/events', (c) => {
  */
 webhookApp.get('/ampeco/stats', (c) => {
   try {
+    const db = getDatabase();
     const stats = db
       .prepare(
         `

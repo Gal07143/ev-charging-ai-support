@@ -12,6 +12,7 @@ import { trackFailedConversationTool } from '../tools/trackFailedConversationToo
 import { semanticSearchTool } from '../tools/semanticSearchTool';
 import { detectLanguageTool, translateTextTool, getUserLanguageTool } from '../tools/translationTools';
 import { startDiagnosticWorkflowTool, continueDiagnosticWorkflowTool, findMatchingWorkflowTool, getWorkflowAnalyticsTool } from '../tools/diagnosticWorkflowTool';
+import { searchChargerModelsTool, lookupErrorCodeTool, getChargerSpecsTool, searchTroubleshootingTool, checkVehicleCompatibilityTool, getChargerStatsTool } from '../tools/chargerDatabaseTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -617,6 +618,14 @@ export const edgeControlAgent = new Agent({
   tools: {
     // RAG Knowledge Base Search - Use this FIRST for any question
     semanticSearch: semanticSearchTool,
+    
+    // Charger Database Tools - Technical specs and error codes
+    searchChargerModels: searchChargerModelsTool,
+    lookupErrorCode: lookupErrorCodeTool,
+    getChargerSpecs: getChargerSpecsTool,
+    searchTroubleshooting: searchTroubleshootingTool,
+    checkVehicleCompatibility: checkVehicleCompatibilityTool,
+    getChargerStats: getChargerStatsTool,
     
     // Diagnostic Workflow Tools - Use for structured troubleshooting
     findMatchingWorkflow: findMatchingWorkflowTool,

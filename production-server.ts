@@ -15,6 +15,7 @@ const app = new Hono();
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'your-api-key-here',
+  baseURL: 'https://api.openai.com/v1', // Force official OpenAI endpoint (ignore OPENAI_BASE_URL env var)
 });
 
 // Initialize SQLite (using the D1 local database)

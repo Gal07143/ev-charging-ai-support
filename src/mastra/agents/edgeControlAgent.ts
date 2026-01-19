@@ -11,6 +11,7 @@ import { analyzeStationImageTool } from '../tools/analyzeStationImageTool';
 import { trackFailedConversationTool } from '../tools/trackFailedConversationTool';
 import { semanticSearchTool } from '../tools/semanticSearchTool';
 import { detectLanguageTool, translateTextTool, getUserLanguageTool } from '../tools/translationTools';
+import { startDiagnosticWorkflowTool, continueDiagnosticWorkflowTool, findMatchingWorkflowTool, getWorkflowAnalyticsTool } from '../tools/diagnosticWorkflowTool';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -38,6 +39,116 @@ const KNOWLEDGE_BASE = `
    - מספרי עמדות ומזהים - ללא תרגום
 
 4. **העדפות נשמרות אוטומטית** - הפעם הראשונה שלקוח כותב, העדפת השפה נשמרת בזיכרון
+
+## 🔧 תהליכי אבחון מובנים (Diagnostic Workflows)
+
+**כשלקוח מתאר בעיה נפוצה - השתמש בתהליך מובנה!**
+
+### זמינים 3 תהליכי אבחון מובנים:
+
+1. **"charging-wont-start"** - הטעינה לא מתחילה (40% מהפניות)
+   - כיסוי: בעיות התחלת טעינה, כבל לא מגיב, נורית לא דולקת
+   - משך זמן: ~5 דקות
+   - שיעור הצלחה: 85%
+
+2. **"slow-charging"** - טעינה איטית (25% מהפניות)
+   - כיסוי: מהירות טעינה נמוכה, לוקח הרבה זמן
+   - משך זמן: ~4 דקות
+   - שיעור הצלחה: 78%
+
+3. **"payment-issue"** - בעיית תשלום (15% מהפניות)
+   - כיסוי: כרטיס נדחה, חיוב שגוי, בקשת החזר
+   - משך זמן: ~3 דקות
+   - שיעור הצלחה: 92%
+
+### איך להשתמש בתהליכים המובנים:
+
+**שלב 1 - זיהוי:**
+\`\`\`javascript
+const match = await findMatchingWorkflow({
+  userMessage: "הטעינה לא מתחילה"
+});
+
+if (match.matchFound) {
+  // Found a matching workflow! Start it
+}
+\`\`\`
+
+**שלב 2 - התחלה:**
+\`\`\`javascript
+const workflow = await startDiagnosticWorkflow({
+  userId: "user123",
+  workflowId: "charging-wont-start",
+  userMessage: "הטעינה לא מתחילה"
+});
+
+// Show the first step message to the user
+\`\`\`
+
+**שלב 3 - המשך:**
+\`\`\`javascript
+const next = await continueDiagnosticWorkflow({
+  userId: "user123",
+  userResponse: "כן, חיברתי את הכבל",
+  toolResults: { status: "available" }
+});
+
+// Show the next step message to the user
+\`\`\`
+
+### יתרונות התהליכים המובנים:
+
+✅ **עקביות** - כל לקוח מקבל את אותה רמת שירות
+✅ **מהירות** - צמצום מ-12 הודעות לממוצע של 6-7
+✅ **הדרכה אוטומטית** - המערכת מנחה אותך מה לשאול
+✅ **העברה חכמה** - אם התהליך נכשל, העברה אוטומטית לנציג אנושי
+✅ **אנליטיקה** - מעקב אחר הצלחת כל שלב
+
+### מתי לא להשתמש בתהליך מובנה:
+
+❌ כשהבעיה לא משתייכת לתהליך קיים (בעיות נדירות)
+❌ כשהלקוח מבקש מידע כללי (לא פתרון בעיה)
+❌ כשהלקוח אמר במפורש "אני רק רוצה לדעת..."
+
+### דוגמה מלאה:
+
+**לקוח**: "הטעינה לא מתחילה, מה לעשות?"
+
+**אתה** (בדיקה):
+\`\`\`javascript
+const match = await findMatchingWorkflow({ userMessage });
+// match.matchFound = true
+// match.workflowId = "charging-wont-start"
+\`\`\`
+
+**אתה** (התחלה):
+\`\`\`javascript
+const wf = await startDiagnosticWorkflow({
+  userId, 
+  workflowId: "charging-wont-start",
+  userMessage
+});
+// wf.firstStepMessage.he = "אני מבין שזה מתסכל שהטעינה לא מתחילה..."
+\`\`\`
+
+**אתה** (תשובה ללקוח):
+"אני מבין שזה מתסכל שהטעינה לא מתחילה. בוא ננסה לפתור את זה ביחד. איך קוראים לך?"
+
+**לקוח**: "דני"
+
+**אתה** (המשך):
+\`\`\`javascript
+const next = await continueDiagnosticWorkflow({
+  userId,
+  userResponse: "דני"
+});
+// next.currentStepMessage.he = "אוקיי דני, תודה. מה מספר העמדה?"
+\`\`\`
+
+### ⚠️ חשוב מאוד:
+- התהליך המובנה **מייעל** את השיחה, לא מחליף את האמפתיה!
+- תמיד שמור על טון אנושי וחם
+- אם הלקוח מבולבל מהתהליך - עבור לשיחה חופשית
 
 ## 🔍 שימוש בכלי Semantic Search (חובה!)
 
@@ -506,6 +617,12 @@ export const edgeControlAgent = new Agent({
   tools: {
     // RAG Knowledge Base Search - Use this FIRST for any question
     semanticSearch: semanticSearchTool,
+    
+    // Diagnostic Workflow Tools - Use for structured troubleshooting
+    findMatchingWorkflow: findMatchingWorkflowTool,
+    startDiagnosticWorkflow: startDiagnosticWorkflowTool,
+    continueDiagnosticWorkflow: continueDiagnosticWorkflowTool,
+    getWorkflowAnalytics: getWorkflowAnalyticsTool,
     
     // Multi-Language Translation Tools
     detectLanguage: detectLanguageTool,

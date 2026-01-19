@@ -14,6 +14,7 @@ import { detectLanguageTool, translateTextTool, getUserLanguageTool } from '../t
 import { startDiagnosticWorkflowTool, continueDiagnosticWorkflowTool, findMatchingWorkflowTool, getWorkflowAnalyticsTool } from '../tools/diagnosticWorkflowTool';
 import { searchChargerModelsTool, lookupErrorCodeTool, getChargerSpecsTool, searchTroubleshootingTool, checkVehicleCompatibilityTool, getChargerStatsTool } from '../tools/chargerDatabaseTools';
 import { checkEscalationTool, createEscalationTicketTool, getEscalationAnalyticsTool, getActiveEscalationsTool, resolveEscalationTool } from '../tools/escalationTools';
+import { scoreConversationQualityTool, getQualityAnalyticsTool, getLowQualityConversationsTool, getToolEffectivenessTool } from '../tools/qualityScoringTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -753,6 +754,12 @@ export const edgeControlAgent = new Agent({
     getEscalationAnalytics: getEscalationAnalyticsTool,
     getActiveEscalations: getActiveEscalationsTool,
     resolveEscalation: resolveEscalationTool,
+    
+    // Quality Scoring Tools - Conversation quality & A/B testing
+    scoreConversationQuality: scoreConversationQualityTool,
+    getQualityAnalytics: getQualityAnalyticsTool,
+    getLowQualityConversations: getLowQualityConversationsTool,
+    getToolEffectiveness: getToolEffectivenessTool,
   },
   memory,
 });

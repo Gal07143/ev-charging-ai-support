@@ -13,6 +13,7 @@ import { semanticSearchTool } from '../tools/semanticSearchTool';
 import { detectLanguageTool, translateTextTool, getUserLanguageTool } from '../tools/translationTools';
 import { startDiagnosticWorkflowTool, continueDiagnosticWorkflowTool, findMatchingWorkflowTool, getWorkflowAnalyticsTool } from '../tools/diagnosticWorkflowTool';
 import { searchChargerModelsTool, lookupErrorCodeTool, getChargerSpecsTool, searchTroubleshootingTool, checkVehicleCompatibilityTool, getChargerStatsTool } from '../tools/chargerDatabaseTools';
+import { checkEscalationTool, createEscalationTicketTool, getEscalationAnalyticsTool, getActiveEscalationsTool, resolveEscalationTool } from '../tools/escalationTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -40,6 +41,102 @@ const KNOWLEDGE_BASE = `
    - מספרי עמדות ומזהים - ללא תרגום
 
 4. **העדפות נשמרות אוטומטית** - הפעם הראשונה שלקוח כותב, העדפת השפה נשמרת בזיכרון
+
+## 🚨 העברה חכמה לנציג אנושי (Smart Escalation)
+
+**מתי להעביר לנציג אנושי - השתמש ב-\`checkEscalation\`!**
+
+### מצבים שדורשים העברה מיידית (CRITICAL):
+
+⚠️ **סכנות בטיחות** - עשן, אש, ניצוצות, התחשמלות, פציעה
+- השתמש מיד ב-\`createEscalationTicket\` עם urgency = critical
+- הודע ללקוח שהוא יקבל מענה תוך 5-15 דקות
+
+📢 **בקשה מפורשת** - "אני רוצה לדבר עם נציג אנושי", "מנהל", "מפקח"
+- אל תתווכח! העבר לנציג אנושי מיד
+- צור כרטיס עם urgency = high
+
+### מצבים שדורשים העברה בהקדם (HIGH):
+
+😤 **תסכול חוזר** - הלקוח כועס/מתוסכל (3+ הודעות שליליות)
+- בדוק sentiment עם \`checkEscalation\`
+- אם יש negative_sentiment trigger - העבר לנציג
+
+🔄 **בעיה חוזרת** - הלקוח פנה פעמיים בשבוע האחרון
+- \`checkEscalation\` מזהה repeated_issue אוטומטית
+- העבר לנציג senior שיטפל בבעיה לעומק
+
+💳 **בעיות תשלום/חיוב** - כרטיס נדחה, חיוב כפול, בקשת החזר
+- payment_failure trigger אוטומטי
+- העבר לצוות חיובים תוך 4 שעות
+
+### מצבים לשקול העברה (MEDIUM):
+
+⏱️ **שיחה ארוכה** - 15+ הודעות או 10+ דקות ללא פתרון
+- timeout trigger יפעל אוטומטית
+- שקול העברה אם הלקוח עדיין מתקשה
+
+🛠️ **כשל בתהליך אבחון** - workflow נכשל/תקוע
+- workflow_failure trigger
+- נסה אפשרות אחרת לפני העברה
+
+🔬 **מורכבות טכנית גבוהה** - 3+ קודי שגיאה, מספר עמדות
+- technical_complexity trigger
+- העבר לטכנאי בעל ניסיון
+
+### איך להשתמש בכלי העברה:
+
+**שלב 1 - בדיקה:**
+\`\`\`javascript
+const escalation = await checkEscalation({
+  userId: "user123",
+  username: "יוסי כהן",
+  messages: [...], // Full conversation
+  conversationDuration: 600, // seconds
+  stationsInvolved: ["STA-001"],
+  errorsEncountered: ["E42"],
+  actionsTaken: ["reset", "unlock"],
+  sentimentHistory: [{ sentiment: "frustrated", score: -0.7 }]
+});
+
+if (escalation.shouldEscalate) {
+  // Need to escalate!
+}
+\`\`\`
+
+**שלב 2 - יצירת כרטיס:**
+\`\`\`javascript
+const ticket = await createEscalationTicket({
+  ...sameParamsAsCheckEscalation,
+  triggers: escalation.triggers // From checkEscalation
+});
+
+// Tell user about the ticket
+return ticket.humanHandoffMessage;
+\`\`\`
+
+### הודעות מומלצות להעברה:
+
+**בעיות בטיחות (CRITICAL):**
+"⚠️ **זה דחוף!** העברתי אותך לצוות הטיפול המיידי שלנו (כרטיס: ESC-123). מישהו יצור איתך קשר תוך 5-15 דקות. בינתיים, אנא התרחק מהעמדה ואל תנסה להשתמש בה."
+
+**בקשה מפורשת (HIGH):**
+"בטח! יצרתי עבורך כרטיס (ESC-456) והעברתי את כל הפרטים לנציג אנושי. מישהו יצור איתך קשר תוך שעה. בינתיים, יש עוד משהו שאוכל לעזור בו?"
+
+**תסכול/בעיה חוזרת (MEDIUM-HIGH):**
+"אני מבין את התסכול שלך, ואני רוצה שנמצא לך פתרון מקיף. העברתי את הפרטים לנציג senior (כרטיס: ESC-789) שיטפל בזה לעומק. הוא יצור איתך קשר תוך 4 שעות."
+
+**שיחה ארוכה (MEDIUM):**
+"נראה שהבעיה מורכבת יותר ממה שחשבתי. אני מעביר את הפרטים לנציג מומחה (כרטיס: ESC-999) שיוכל לעזור לך טוב יותר. מישהו יצור איתך קשר בהקדם."
+
+### עקרונות זהב להעברה:
+
+✅ **אמפתיה קודם כל** - "אני מבין", "זה בטח מתסכל"
+✅ **שקיפות** - תמיד תן מספר כרטיס וזמן מענה משוער
+✅ **המשכיות** - הנציג האנושי יקבל את כל ההיסטוריה
+✅ **לא לזרוק את המטען** - שאל אם יש עוד משהו שאתה יכול לעזור בו עכשיו
+❌ **לא להיכנע מהר** - נסה לפחות 2-3 אפשרויות פתרון לפני העברה
+❌ **לא להתנצל יותר מדי** - "I apologize..." רק פעם אחת
 
 ## 🔧 תהליכי אבחון מובנים (Diagnostic Workflows)
 
@@ -649,6 +746,13 @@ export const edgeControlAgent = new Agent({
     // Media & Tracking Tools
     analyzeStationImage: analyzeStationImageTool,
     trackFailedConversation: trackFailedConversationTool,
+    
+    // Escalation Tools - Smart human handoff
+    checkEscalation: checkEscalationTool,
+    createEscalationTicket: createEscalationTicketTool,
+    getEscalationAnalytics: getEscalationAnalyticsTool,
+    getActiveEscalations: getActiveEscalationsTool,
+    resolveEscalation: resolveEscalationTool,
   },
   memory,
 });

@@ -357,6 +357,43 @@ const evModels = [
   // HYUNDAI, KIA, VW, BMW, Mercedes, Audi, Ford, Chevrolet coming next...
 ];
 
+// Create tables first
+function createTables() {
+  console.log('📋 Creating ev_models table...');
+  
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ev_models (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vehicle_id VARCHAR(100) UNIQUE NOT NULL,
+      make VARCHAR(100) NOT NULL,
+      model VARCHAR(100) NOT NULL,
+      year INTEGER NOT NULL,
+      trim VARCHAR(100),
+      battery_capacity_kwh DECIMAL(5,2),
+      usable_capacity_kwh DECIMAL(5,2),
+      range_km INTEGER,
+      range_miles INTEGER,
+      ac_max_power_kw DECIMAL(5,2),
+      ac_phases INTEGER,
+      ac_connector_type VARCHAR(50),
+      dc_max_power_kw DECIMAL(6,2),
+      dc_connector_type VARCHAR(50),
+      charging_curve TEXT,
+      category VARCHAR(50),
+      segment VARCHAR(50),
+      is_active BOOLEAN DEFAULT TRUE,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_ev_make_model ON ev_models(make, model);
+    CREATE INDEX IF NOT EXISTS idx_ev_year ON ev_models(year);
+  `);
+  
+  console.log('✅ Table created successfully\n');
+}
+
 // Insert function
 function insertEVModels() {
   const stmt = db.prepare(`
@@ -413,6 +450,9 @@ function insertEVModels() {
 
 // Run insertion
 try {
+  // Create tables first
+  createTables();
+  
   const result = insertEVModels();
   
   console.log(`

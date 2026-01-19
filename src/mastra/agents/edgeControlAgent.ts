@@ -25,6 +25,7 @@ import { getCacheStatsTool, invalidateCacheTool, getCircuitBreakerStatusTool, re
 import { checkDocSourceTool, getPendingKBReviewsTool, getKBScrapingHealthTool, getRecentKBChangesTool } from '../tools/automatedKBTools';
 import { searchConversationsTool, getSimilarConversationsTool, getConversationSummaryTool, getHighQualityResolutionsTool, getSearchAnalyticsTool } from '../tools/conversationSearchTools';
 import { getChargerHealthTool, getCriticalAlertsTool, getUpcomingMaintenanceTool, getHealthDashboardTool, scheduleMaintenanceTool } from '../tools/proactiveMaintenanceTools';
+import { startWorkflowTool, getUserProfileTool, updateUserProfileTool, getRecommendationsTool, checkFraudRiskTool, logVoiceCommandTool, getUserPointsTool, awardPointsTool, getKPIMetricsTool, executeReportTool, validateAPIKeyTool, logAPIRequestTool } from '../tools/p3StrategicTools';
 
 // Updated Hebrew knowledge base with RAG integration + Multi-Language Support
 const KNOWLEDGE_BASE = `
@@ -893,6 +894,20 @@ export const edgeControlAgent = new Agent({
     getUpcomingMaintenance: getUpcomingMaintenanceTool,
     getHealthDashboard: getHealthDashboardTool,
     scheduleMaintenance: scheduleMaintenanceTool,
+    
+    // P3 Strategic Tools (Features #18-25)
+    startWorkflow: startWorkflowTool,
+    getUserProfile: getUserProfileTool,
+    updateUserProfile: updateUserProfileTool,
+    getRecommendations: getRecommendationsTool,
+    checkFraudRisk: checkFraudRiskTool,
+    logVoiceCommand: logVoiceCommandTool,
+    getUserPoints: getUserPointsTool,
+    awardPoints: awardPointsTool,
+    getKPIMetrics: getKPIMetricsTool,
+    executeReport: executeReportTool,
+    validateAPIKey: validateAPIKeyTool,
+    logAPIRequest: logAPIRequestTool,
   },
   memory,
 });

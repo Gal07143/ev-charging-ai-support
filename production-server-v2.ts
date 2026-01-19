@@ -48,6 +48,16 @@ app.use('*', async (c, next) => {
   console.log(`${c.req.method} ${c.req.path} - ${c.res.status} (${duration}ms)`);
 });
 
+// Import new route modules
+import webhookApp from './src/routes/webhooks';
+import analyticsApp from './src/routes/analytics';
+import rfidApp from './src/routes/rfid';
+
+// Mount new routes
+app.route('/api/webhooks', webhookApp);
+app.route('/api/analytics', analyticsApp);
+app.route('/api/rfid', rfidApp);
+
 // ============================================
 // ENHANCED SYSTEM PROMPT
 // ============================================

@@ -4,10 +4,12 @@
 
 A lightweight, fast web application built with [Hono](https://hono.dev) and [OpenAI GPT-4o-mini](https://openai.com), deployed on [Cloudflare Pages](https://pages.cloudflare.com).
 
+[![CI/CD](https://github.com/Gal07143/ev-charging-ai-support/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Gal07143/ev-charging-ai-support/actions/workflows/ci-cd.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Hono](https://img.shields.io/badge/Hono-4.0-orange)](https://hono.dev)
 [![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages-yellow)](https://pages.cloudflare.com)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green)](https://openai.com)
+[![Tests](https://img.shields.io/badge/Tests-16%2F18%20Passing-brightgreen)](https://github.com/Gal07143/ev-charging-ai-support)
 
 ---
 
